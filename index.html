@@ -1,0 +1,197 @@
+<!--
+ * @Description: 
+ * @Autor: sangjk
+ * @Date: 2019-08-20 09:44:18
+ * @LastEditors: 
+ * @LastEditTime: 2019-08-20 09:58:05
+ -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <style>
+        * {
+            padding: 0;
+            margin: 0;
+        }
+
+        body {
+            padding: 50px;
+        }
+        .box{
+            width: 500px;
+            margin-bottom: 30px;
+        }
+        .input-1 {
+            width: 200px;
+            height: 30px;
+            border: 1px solid #f5f5f5;
+            display: inline-block;
+        }
+
+        .input-2 {
+            width: 80px;
+            height: 30px;
+            background-color: #3385ff;
+            color: #fff;
+            border: 0;
+        }
+
+        p {
+            font-size: 16px;
+            width: 80%;
+            word-break: break-all;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="box">
+        <input type="text" id="en-content1" maxlength="6" class="input-1">
+        <input type="button" id="en-submit1" value="支付加密" class="input-2">
+        <p id="encrypt1">加密结果：</p>
+    </div>
+    <div class="box">
+        <input type="text" id="en-content2" class="input-1">
+        <input type="button" id="en-submit2" value="关键字加密" class="input-2">
+        <p id="encrypt2">加密结果：</p>
+    </div>
+    <script src="./index.js"></script>
+    <script src="./SM4.js"></script>
+    <!-- <script src="./sm4-1.js"></script> -->
+    <script>
+        var enBtn1 = document.querySelector('#en-submit1');
+        var enBtn2 = document.querySelector('#en-submit2');
+        //支付密码加密
+        enBtn1.onclick = function () {
+            var str = document.querySelector('#en-content1').value;
+            var publickey =
+                '04628AA391C7F69C199E3420D9E5B7AD90C41F63DC08079B80E42EA9DC5C77983491915DE98F2EBFEAF1022ECB655B16EE98881359BBDA84A54239D2F0BFA2431E';
+            var privitekey='ED87F1FAAA6CBD668110D3026BD0CCB2A18C9313209F72822766AF569E9B1DD8';
+            var plaintext = update(str); //补位
+            var plaintext1=Bytes2Str(plaintext);
+            var encryptData = sm2Encrypt(plaintext1, publickey);//加密
+            document.getElementById('encrypt1').innerText=encryptData;
+            var ds=sm2Decrypt(encryptData,privitekey);//解密
+            console.log(ds);
+        }
+        //关键字加密   随机数密钥用32位随机数 将随机数sm2加密，加密内容用sm4加密 且密钥为32随机数
+        enBtn2.onclick = function () {
+            var str = document.querySelector('#en-content2').value;
+            var publickey =
+                '04628AA391C7F69C199E3420D9E5B7AD90C41F63DC08079B80E42EA9DC5C77983491915DE98F2EBFEAF1022ECB655B16EE98881359BBDA84A54239D2F0BFA2431E';
+            var randNum32 = randomWord(32); //32位随机数 0-9 A-F
+            var sek = Str2Bytes(randNum32); //转为字节作为sm4私钥
+            var encryptData = sm2Encrypt(randNum32, publickey); //对私钥进行数加密sm2
+            var s4 = new SM4Util(); //实例化
+            s4.secretKey = sek; //设置密钥
+            var sm4data = s4.encryptData_ECB(str); //加密结果
+            //拼接成后台解密所需格式
+            var data = encryptData + '_' + sm4data;
+            document.getElementById('encrypt2').innerText=data.toUpperCase();
+        }
+        //补位
+        function update(str) {
+            var len = str.length;
+            if (len == 0) {
+                var newStr = '';
+            } else {
+                var newStr = (len < 10 ? '0' + len : len) + str;
+            }
+            for (newStr.length; newStr.length < 32; len++) {
+                newStr += 'F'
+            }
+            return newStr;
+        }
+        //随机数
+        function randomWord(n) {
+            var str = "",
+                arr = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'];
+            for (var i = 0; i < n; i++) {
+                var pos = Math.round(Math.random() * 15);
+                str += arr[pos];
+            }
+            return str;
+
+        }
+
+        //十六进制字符串转字节数组
+        function Str2Bytes(str) {
+            var pos = 0;
+            var len = str.length;
+            if (len % 2 != 0) {
+                return null;
+            }
+            len /= 2;
+            var hexA = new Array();
+            for (var i = 0; i < len; i++) {
+                var s = str.substr(pos, 2);
+                var v = parseInt(s, 16);
+                hexA.push(v);
+                pos += 2;
+            }
+            return hexA;
+        }
+        //字节数组转字符串
+        function Bytes2Str(arr)
+
+        {
+            var str = "";
+            for (var i = 0; i < arr.length; i++) {
+                var tmp = arr[i].toString(16);
+                if (tmp.length == 1) {
+                    tmp = "0" + tmp;
+                }
+                str += tmp;
+            }
+            return str;
+        }
+        // 关键字测试
+        /*;(function(){
+            var str='123123';
+            var random32='6FD458EE1AA94947034E0C5C6E93E2EB';
+            var publickey='04628AA391C7F69C199E3420D9E5B7AD90C41F63DC08079B80E42EA9DC5C77983491915DE98F2EBFEAF1022ECB655B16EE98881359BBDA84A54239D2F0BFA2431E';
+            var sek=Str2Bytes(random32);
+            var encryptData = sm2Encrypt(random32, publickey);
+            var s4 = new SM4Util();
+            s4.secretKey=sek;
+            var sm4data = s4.encryptData_ECB(str);
+            console.log((encryptData+'_'+sm4data).toUpperCase());
+        })()
+        // sm2测试
+        ;(function(){
+            var str=randomWord(32);
+            var skey='ED87F1FAAA6CBD668110D3026BD0CCB2A18C9313209F72822766AF569E9B1DD8';
+            var pkey='04628AA391C7F69C199E3420D9E5B7AD90C41F63DC08079B80E42EA9DC5C77983491915DE98F2EBFEAF1022ECB655B16EE98881359BBDA84A54239D2F0BFA2431E';
+            console.log(str)
+            var ct = sm2Encrypt(str, pkey);
+            console.log(ct)
+            return false;
+            for (var i = 0; i < 100; i++) {
+                var ct = sm2Encrypt(str, pkey);
+                console.log(ct,ct.length)
+                arr.push(ct);
+                try {
+                    var dt = sm2Decrypt(ct, skey);
+                    console.log(Bytes2Str(dt),11111111111)
+                } catch (e) {
+                    console.error("出错了", ct, e)
+                }
+                console.log(i);
+            }
+            // console.log(JSON.stringify(arr.slice(0,50)))
+            // var decryptData=sm2Decrypt(str.toLowerCase(),pkey);
+            // console.log(str.length,pkey.length)
+            // console.log(Bytes2Str(decryptData))
+            // var arr=[237, 135, 241, 250, 170, 108, 189, 102, 129, 16, 211, 2, 107, 208, 204, 178, 161, 140, 147, 19, 32, 159, 114, 130, 39, 102, 175, 86, 158, 155, 29, 216];
+            // console.log(Bytes2Str(arr))
+        })()
+        */
+    </script>
+</body>
+
+</html>
